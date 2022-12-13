@@ -1,80 +1,100 @@
-
-import Board from './Board.js';
-import GuessInput from './GuessInput.js';
-import FoundSolutions from './FoundSolutions.js';
-import SummaryResults from './SummaryResults.js';
-import ToggleGameState from './ToggleGameState.js';
-import logo from './logo.png';
+import logo from './logo.svg';
 import './App.css';
-import findAllSolutions from './boggle_solver.js';
-import React, { useState, useEffect } from 'react';
-import {GAME_STATE} from './GameState.js';
-import {RandomGrid} from './randomGen.js';
+import Board from './components/Board';
+import Keyboard from './components/Keyboard';
+import { createContext, useEffect, useState } from 'react';
+import { boardDefault, RandomGrid, generateWordSet } from './Words';
+import GameOver from './components/GameOver';
 
+export const AppContext = createContext();
 
 function App() {
+  const [board,setBoard] = useState(boardDefault);
+  const [currAttempt, setCurrAttempt] = useState({ attempt: 0, letterPos: 0});
+  const [wordSet, setWordSet] = useState(new Set());
+  const [disabledLetters, setDisabledLetters] = useState([]);
+  const [correctWord, setCorrectWord] = useState("");
+  const [gameOver, setGameOver] = useState({
+    gameOver: false, 
+    guessedWord: false,
+  });
 
-  const [allSolutions, setAllSolutions] = useState([]);  // solutions from solver
-  const [foundSolutions, setFoundSolutions] = useState([]);  // found by user
-  const [gameState, setGameState] = useState(GAME_STATE.BEFORE); // Just an enuerator or the three states see below
-  const [grid, setGrid] = useState([]);   // the grid
-  const [totalTime, setTotalTime] = useState(0);  // total time elapsed
-  const [size, setSize] = useState(3);  // selected grid size
-  
-  // useEffect will trigger when the array items in the second argument are
-  // updated so whenever grid is updated, we will recompute the solutions
-  useEffect(() => {
-    const wordList = require('./full-wordlist.json');
-    let tmpAllSolutions = findAllSolutions(grid, wordList.words);
-    setAllSolutions(tmpAllSolutions);
-  }, [grid]);
 
-  // This will run when gameState changes.
-  // When a new game is started, generate a new random grid and reset solutions
-  
+  //const correctWord = "RIGHT"; //test case
+  //delete enter and picking letter functions
 
   useEffect(() => {
-    if (gameState === GAME_STATE.IN_PROGRESS) {
-      setGrid(RandomGrid(size));
-      setFoundSolutions([]);
-    }
-  }, [gameState, size]);
-
-  function correctAnswerFound(answer) {
-    console.log("New correct answer:" + answer);
-    setFoundSolutions([...foundSolutions, answer]);
+    generateWordSet().then((words) => {
+      setWordSet(words.wordSet);
+      setCorrectWord(words.todaysWord);
+});
+  }, [])
+  
+  const onSelectLetter = (keyVal) => {
+    if (currAttempt.letterPos > 4) return;
+      const newBoard = [...board];
+      newBoard[currAttempt.attempt][currAttempt.letterPos] = keyVal;
+      setBoard(newBoard);
+      setCurrAttempt({...currAttempt, letterPos: currAttempt.letterPos + 1});
   }
+  const onDelete = () => {
+    if (currAttempt.letterPos == 0) return;
+    const newBoard = [...board];
+    newBoard[currAttempt.attempt][currAttempt.letterPos - 1] = ""; 
+    setBoard(newBoard);
+    setCurrAttempt({...currAttempt, letterPos: currAttempt.letterPos - 1});
+  }
+  const onEnter = () => {
+    if (currAttempt.letterPos !== 5) return;
+    //loop through to see if its a word in the list
+    let currWord = "";
+    for (let x = 0; x < 5; x++) 
+    {
+      currWord += board[currAttempt.attempt][x];
+    }
 
+    if (wordSet.has(currWord.toLowerCase())) {
+      setCurrAttempt({attempt: currAttempt.attempt + 1, letterPos: 0});
+    } else {
+      alert("Word not found");
+    }
+
+    if (currWord.toLowerCase() === correctWord) {
+      setGameOver({gameOver: true, guessedWord: true});
+      return;
+    } 
+    if (currAttempt.attempt === 5) {
+      setGameOver({ gameOver: true, guessedWord: false});
+    }
+  };
   return (
-      <div className="App">
-        
-          <img src={logo}  width="10%" height="10%" class="logo" alt="Bison Boggle Logo" /> 
-  
-          <ToggleGameState gameState={gameState}
-                         setGameState={(state) => setGameState(state)} 
-                         setSize={(state) => setSize(state)}
-                         setTotalTime={(state) => setTotalTime(state)}/>
-  
-        { gameState === GAME_STATE.IN_PROGRESS &&
-          <div>
-            <Board board={grid} />
-  
-            <GuessInput allSolutions={allSolutions}
-                        foundSolutions={foundSolutions}
-                        correctAnswerCallback={(answer) => correctAnswerFound(answer)}/>
-            <FoundSolutions headerText="Solutions you've found" words={foundSolutions} />
-          </div>
-        }
-        { gameState === GAME_STATE.ENDED &&
-          <div>
-            <Board board={grid} />
-            <SummaryResults words={foundSolutions} totalTime={totalTime} />
-            <FoundSolutions headerText="Missed Words [wordsize > 3]: " words={allSolutions}  />
-            
-          </div>
-        }
-      </div>
-    );
+    <div className="App">
+      <nav>
+        <h1>Wordle</h1>
+      </nav>
+      <AppContext.Provider 
+      value={{ 
+        board, 
+        setBoard, 
+        currAttempt, 
+        setCurrAttempt, 
+        onDelete, 
+        onEnter, 
+        onSelectLetter, 
+        correctWord,
+        setDisabledLetters,
+        disabledLetters,
+        setGameOver,
+        gameOver,
+      }}
+      >
+        <div className="game">
+          <Board />
+          {gameOver.gameOver ? <GameOver /> : <Keyboard /> }
+        </div>
+      </AppContext.Provider>
+    </div>
+  );   
 }
 
 export default App;
