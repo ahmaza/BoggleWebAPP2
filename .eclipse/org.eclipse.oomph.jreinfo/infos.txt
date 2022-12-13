@@ -1,2 +1,0 @@
-/Library/Java/JavaVirtualMachines/jdk-9.0.4.jdk/Contents/Home:9:0:4:64:true:1513736147000
-/Library/Internet Plug-Ins/JavaAppletPlugin.plugin/Contents/Home:9:0:4:64:false:1513736233000
